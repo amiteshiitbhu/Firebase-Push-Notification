@@ -1,75 +1,77 @@
 package com.exmple.firebase.pushnotification;
 
-import android.support.annotation.NonNull;
-import android.support.v7.app.AppCompatActivity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.support.v7.app.AppCompatActivity;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.iid.FirebaseInstanceId;
-import com.google.firebase.iid.InstanceIdResult;
-import com.google.firebase.remoteconfig.FirebaseRemoteConfig;
-import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
+import com.google.firebase.FirebaseException;
+import com.google.firebase.auth.PhoneAuthCredential;
+import com.google.firebase.auth.PhoneAuthProvider;
 
-import org.w3c.dom.Text;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
-    private FirebaseRemoteConfig mFirebaseRemoteConfig;
-    private TextView viewById;
+    private String appPackageName;
+    private boolean isFirstTimeLaunch = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        viewById = findViewById(R.id.tv_main);
-        FirebaseInstanceId.getInstance().getInstanceId().addOnCompleteListener(new OnCompleteListener<InstanceIdResult>() {
+        isFirstTimeLaunch = true;
+
+        String phoneNum = "+918009742403";
+        String testVerificationCode = "123456";
+
+        PhoneAuthProvider.getInstance().verifyPhoneNumber(phoneNum, 30L, TimeUnit.SECONDS, this, new PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
             @Override
-            public void onComplete(@NonNull Task<InstanceIdResult> task) {
-                if (!task.isSuccessful()) {
-                    Log.w("getInstanceId failed", task.getException());
-                    return;
-                }
-                if (task.getResult() != null) {
-                    String token = task.getResult().getToken();
-                    System.out.println("FCM Regestration Token = " + token);
-                }
+            public void onCodeSent(String verificationId, PhoneAuthProvider.ForceResendingToken forceResendingToken) {
+                MainActivity.this.enableUserManuallyInputCode();
+                System.out.println("Code Send");
             }
+
+            @Override
+            public void onVerificationCompleted(PhoneAuthCredential phoneAuthCredential) {
+                System.out.println("Code Send Not");
+            }
+
+            @Override
+            public void onVerificationFailed(FirebaseException e) {
+                System.out.println("Code Send failed");
+            }
+
         });
 
-        mFirebaseRemoteConfig = FirebaseRemoteConfig.getInstance();
-        FirebaseRemoteConfigSettings configSettings = new FirebaseRemoteConfigSettings.Builder()
-                .setDeveloperModeEnabled(BuildConfig.DEBUG)
-                .build();
-        mFirebaseRemoteConfig.setConfigSettings(configSettings);
-        long cacheExpiration = 3600;
-        if (mFirebaseRemoteConfig.getInfo().getConfigSettings().isDeveloperModeEnabled()) {
-            cacheExpiration = 0;
-        }
-        mFirebaseRemoteConfig.fetch(cacheExpiration)
-                .addOnCompleteListener(this, new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        if (task.isSuccessful()) {
-                            Toast.makeText(MainActivity.this, "Fetch Succeeded", Toast.LENGTH_SHORT).show();
-                            mFirebaseRemoteConfig.activateFetched();
-                        } else {
-                            Toast.makeText(MainActivity.this, "Fetch Failed", Toast.LENGTH_SHORT).show();
-                        }
-                        displayWelcomeMessage();
-                    }
-                });
+
     }
 
-    private void displayWelcomeMessage() {
-        if (mFirebaseRemoteConfig.getBoolean("is_time_over")) {
-            viewById.setText("India Hai");
-        } else {
-            viewById.setText("India Nahi Hai");
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Intent intent = getIntent();
+
+        if (intent != null) {
+            Bundle extras = intent.getExtras();
+            if (extras != null) {
+                appPackageName = extras.getString("appPackageName");
+                System.out.println("isFirstTimeLaunch" + appPackageName);
+                if (appPackageName != null) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + appPackageName)));
+                    } catch (android.content.ActivityNotFoundException anfe) {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + appPackageName)));
+                    }
+                }
+            }
         }
+
+
+    }
+
+    private void enableUserManuallyInputCode() {
+        System.out.println("Code Send Not A");
     }
 }
